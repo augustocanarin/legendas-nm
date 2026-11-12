@@ -3,7 +3,7 @@
   "fonte_arquivo": "fonts/LegendaReels-RobotoCondensedBold.ttf",
   "fonte_original_do_design": "Helvetica Neue Condensed Bold",
   "cor": "#FFEA00",
-  "tamanho_px": 86.727,
+  "tamanho_px": 76,
   "espacamento_letras_px": -2.6,
   "escala_horizontal": 91,
   "_escala_horizontal": "91% deixa a Roboto Condensed com a largura da Helvetica Neue Condensed do design. Ao usar a Helvetica de verdade (--fonte), o script volta para 100.",

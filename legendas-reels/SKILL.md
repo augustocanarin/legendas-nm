@@ -17,7 +17,7 @@ efeito visual — por isso a revisão do texto (passo 3) é a parte mais importa
 ## Preparar o ambiente (uma vez por máquina)
 
 ```bash
-pip install faster-whisper pillow fonttools
+pip install faster-whisper pillow fonttools onnxruntime
 ffmpeg -version   # precisa existir; no Mac: brew install ffmpeg
 ```
 
@@ -56,7 +56,13 @@ python scripts/transcrever.py VIDEO.mp4 -o trabalho/transcricao.json --dica "Pr.
 Modelo padrão `medium` (bom equilíbrio para fala em português); `small` se a máquina for fraca.
 O script lista as palavras de baixa confiança — elas são o primeiro lugar a revisar.
 
-**Música / louvor:** use direto `--modelo large-v3 --sem-vad`. No teste com um louvor de 3 min
+**Música / louvor:** primeiro isole a voz (o violão/banda atrapalha tanto a transcrição quanto
+o tempo), e use o `voz.wav` no lugar do vídeo na transcrição e na sincronização:
+```bash
+python scripts/separar_voz.py VIDEO.mp4 -o trabalho/voz.wav          # ~1x a duração do vídeo
+python scripts/transcrever.py trabalho/voz.wav -o trabalho/transcricao.json --modelo large-v3 --sem-vad
+```
+Use `--modelo large-v3 --sem-vad` em música. No teste com um louvor de 3 min
 (voz e violão), o `medium` com o filtro de voz pegou só 60 palavras e pulou metade da música;
 o `large-v3` sem filtro pegou a letra inteira com bons tempos (~4 min de processamento).
 
@@ -90,13 +96,25 @@ todas as frases** e corrija o `"texto"` no `frases.json`:
   e crie duas entradas. Para **juntar**, use o início da primeira e o fim da segunda. Frases
   nunca podem se sobrepor no tempo.
 
+### 3b. Sincronizar (obrigatório)
+```bash
+python scripts/sincronizar.py trabalho/voz.wav trabalho/frases.json -o trabalho/frases_sinc.json   # música
+python scripts/sincronizar.py VIDEO.mp4 trabalho/frases.json -o trabalho/frases_sinc.json --sem-sustain   # fala
+```
+Os tempos do Whisper erram muito em música (no teste, até 3,4 s: ele "gruda" o início de um
+verso no fim do anterior). O usuário espera que cada frase entre e saia exatamente quando é
+cantada/falada — esse é o critério de qualidade nº 1. Este passo faz alinhamento forçado
+(wav2vec2 de português) do texto já revisado contra o áudio. Por isso rode-o **depois** de
+revisar o texto, e use `frases_sinc.json` no passo 5. Se ele disser que não conseguiu
+alinhar, há texto faltando ou sobrando em relação ao áudio.
+
 Mostre ao usuário a lista final de frases (número, tempo e texto) e as correções que você fez
 e que mudam sentido ou nome — ele conhece o conteúdo e pega erros que você não pegaria. Em
 pedidos do tipo "só legenda e me manda", siga em frente e liste as correções no final.
 
 ### 4. Conferir o visual antes de renderizar
 ```bash
-python scripts/legendar.py VIDEO.mp4 trabalho/frases.json -o saida/VIDEO_legendado.mp4 --previa
+python scripts/legendar.py VIDEO.mp4 trabalho/frases_sinc.json -o saida/VIDEO_legendado.mp4 --previa
 ```
 Isso gera 3 imagens (início, meio, fim). Olhe-as:
 - A legenda está legível? O estilo original é amarelo sem contorno, pensado para fundo escuro.
@@ -108,7 +126,7 @@ Isso gera 3 imagens (início, meio, fim). Olhe-as:
 
 ### 5. Renderizar e entregar
 ```bash
-python scripts/legendar.py VIDEO.mp4 trabalho/frases.json -o saida/VIDEO_legendado.mp4 --largura 1080
+python scripts/legendar.py VIDEO.mp4 trabalho/frases_sinc.json -o saida/VIDEO_legendado.mp4 --largura 1080
 ```
 `--largura 1080` entrega em 1080×1920, o tamanho máximo que o Instagram usa: o arquivo fica
 bem menor (ex.: 564 MB em 1440p → 118 MB) sem diferença visível no Reel. Omita para manter a
@@ -138,7 +156,7 @@ quiser que as quebras levem em conta a nova largura (na prática a diferença é
 | campo | o que faz |
 |---|---|
 | `cor` | cor do texto (#FFEA00) |
-| `tamanho_px` | tamanho da letra num vídeo de 1080 de largura (86,7 do Figma) |
+| `tamanho_px` | tamanho da letra num vídeo de 1080 de largura (76; o Figma tinha 86,7 e o usuário pediu menor) |
 | `espacamento_letras_px` | espaço entre letras (−2,6 do Figma) |
 | `escala_horizontal` | estreita a fonte reserva para imitar a Helvetica Condensed |
 | `brilho_desfoque_px` | força do brilho (0 desliga) |
