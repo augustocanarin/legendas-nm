@@ -42,11 +42,11 @@ def texto_de(palavras):
     return " ".join(w["palavra"] for w in palavras)
 
 
-def blocos(palavras):
+def blocos(palavras, usar_pausas=True):
     """Corta onde a quebra é obrigatória: fim de frase (. ? !) ou pausa na fala."""
     atual = []
     for w in palavras:
-        if atual and w["inicio"] - atual[-1]["fim"] > PAUSA_QUEBRA:
+        if usar_pausas and atual and w["inicio"] - atual[-1]["fim"] > PAUSA_QUEBRA:
             yield atual
             atual = []
         atual.append(w)
@@ -98,9 +98,9 @@ def quebrar_bloco(bloco, medidor):
     return linhas
 
 
-def segmentar(palavras, medidor):
+def segmentar(palavras, medidor, usar_pausas=True):
     frases = []
-    for bloco in blocos(palavras):
+    for bloco in blocos(palavras, usar_pausas):
         frases.extend(quebrar_bloco(bloco, medidor))
     return frases
 
@@ -132,7 +132,19 @@ def main():
     with open(a.transcricao, encoding="utf-8") as f:
         dados = json.load(f)
     medidor = Medidor(carregar_estilo(a.estilo), a.largura_video)
-    frases = cronometrar(segmentar(dados["palavras"], medidor))
+    if "frases" in dados:
+        # redividir frases já revisadas (ex.: depois de mudar o tamanho máximo da linha):
+        # usa os tempos de cada palavra e mantém o fim de cada frase antiga como quebra
+        palavras = []
+        for f in dados["frases"]:
+            ws = f.get("palavras") or [[p, f["inicio"], f["fim"]] for p in f["texto"].split()]
+            for p, t0, t1 in ws:
+                palavras.append({"palavra": p, "inicio": t0, "fim": t1})
+            palavras[-1]["quebra"] = True
+    else:
+        palavras = dados["palavras"]
+    # Em frases revisadas, os limites já são os certos; pausas de notas longas não devem cortar.
+    frases = cronometrar(segmentar(palavras, medidor, usar_pausas="frases" not in dados))
 
     with open(a.saida, "w", encoding="utf-8") as f:
         json.dump({"frases": frases}, f, ensure_ascii=False, indent=1)

@@ -89,7 +89,7 @@ arquivo gerado no passo 3 no lugar da transcrição.
 ```bash
 python scripts/segmentar.py trabalho/transcricao.json -o trabalho/frases.json
 ```
-O script já garante que cada frase cabe numa linha e evita cortes feios. Agora **leia
+O script já garante frases curtas (2–3 palavras, no ritmo da referência "TUDO É PERDA") e evita cortes feios. Se você juntar/editar frases à mão e elas ficarem longas, rode o `segmentar.py` de novo passando o próprio `frases.json` revisado: ele redivide mantendo o texto e os limites que você definiu. Agora **leia
 todas as frases** e corrija o `"texto"` no `frases.json`:
 - Ortografia, acentos e pontuação; nomes bíblicos e termos cristãos — veja
   `references/vocabulario.md` (erros comuns do Whisper e grafia certa).
@@ -168,7 +168,7 @@ quiser que as quebras levem em conta a nova largura (na prática a diferença é
 | `escala_horizontal` | estreita a fonte reserva para imitar a Helvetica Condensed |
 | `brilho_desfoque_px` | força do brilho (0 desliga) |
 | `posicao_vertical` | 0.5 = centro; maior = mais para baixo |
-| `largura_maxima` | fração da largura do vídeo que uma frase pode ocupar |
+| `largura_maxima` | fração da largura que uma frase pode ocupar (0,42 ≈ 2–3 palavras por vez; o usuário achou 0,84 texto demais por linha) |
 | `sombra_contraste` | 0 = desligada; ~12 = sombra escura suave para fundos claros |
 
 Tudo é proporcional: vídeos 720p ou 4K ficam com a mesma aparência de um 1080×1920.
