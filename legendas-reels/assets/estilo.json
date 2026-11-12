@@ -1,0 +1,15 @@
+{
+  "_sobre": "Estilo das legendas, copiado da referência do Figma (frame 1080x1920). Medidas em pixels de um vídeo 1080 de largura; o script ajusta para outras resoluções.",
+  "fonte_arquivo": "fonts/LegendaReels-RobotoCondensedBold.ttf",
+  "fonte_original_do_design": "Helvetica Neue Condensed Bold",
+  "cor": "#FFEA00",
+  "tamanho_px": 86.727,
+  "espacamento_letras_px": -2.6,
+  "escala_horizontal": 91,
+  "_escala_horizontal": "91% deixa a Roboto Condensed com a largura da Helvetica Neue Condensed do design. Ao usar a Helvetica de verdade (--fonte), o script volta para 100.",
+  "caixa_alta": true,
+  "brilho_desfoque_px": 6,
+  "posicao_vertical": 0.5,
+  "largura_maxima": 0.84,
+  "sombra_contraste": 0
+}
