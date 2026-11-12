@@ -156,7 +156,7 @@ quiser que as quebras levem em conta a nova largura (na prática a diferença é
 | campo | o que faz |
 |---|---|
 | `cor` | cor do texto (#FFEA00) |
-| `tamanho_px` | tamanho da letra num vídeo de 1080 de largura (76; o Figma tinha 86,7 e o usuário pediu menor) |
+| `tamanho_px` | tamanho da letra num vídeo de 1080 de largura (70; o Figma tinha 86,7 e o usuário pediu menor) |
 | `espacamento_letras_px` | espaço entre letras (−2,6 do Figma) |
 | `escala_horizontal` | estreita a fonte reserva para imitar a Helvetica Condensed |
 | `brilho_desfoque_px` | força do brilho (0 desliga) |
