@@ -9,14 +9,30 @@ e o texto corrido de cada trecho, que o segmentar.py usa em seguida.
 """
 import argparse
 import json
+import subprocess
 import sys
 import time
+
+import numpy as np
 
 DICA_PADRAO = (
     "Ministração cristã em português do Brasil, com versículos e louvor. "
     "Jesus, Cristo, Deus, Senhor, Espírito Santo, Pai, aleluia, amém, glória, "
     "graça, louvor, adoração, Bíblia, evangelho, igreja, Getsêmani, Emanuel, Calvário."
 )
+
+
+def ler_audio(video, taxa=16000):
+    """Extrai o áudio com o ffmpeg (mono, 16 kHz).
+
+    Não usamos o leitor interno do faster-whisper (PyAV) porque versões novas
+    do PyAV quebram a compatibilidade; o ffmpeg já é necessário para a skill.
+    """
+    r = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-i", video, "-vn", "-ac", "1",
+                        "-ar", str(taxa), "-f", "s16le", "-"], capture_output=True)
+    if r.returncode != 0:
+        sys.exit("ffmpeg não conseguiu ler o áudio:\n" + r.stderr.decode(errors="ignore")[-2000:])
+    return np.frombuffer(r.stdout, np.int16).astype(np.float32) / 32768.0
 
 
 def main():
@@ -28,6 +44,8 @@ def main():
     p.add_argument("--dica", default="",
                    help="nomes e termos que aparecem no vídeo (pregador, música, livro bíblico)")
     p.add_argument("--idioma", default="pt")
+    p.add_argument("--sem-vad", action="store_true",
+                   help="não pular trechos sem voz (use se partes cantadas sumirem da transcrição)")
     a = p.parse_args()
 
     try:
@@ -40,11 +58,11 @@ def main():
     print(f"Carregando modelo '{a.modelo}' (na 1ª vez ele é baixado, ~1,5 GB no medium)...", file=sys.stderr)
     modelo = WhisperModel(a.modelo, device="auto", compute_type="int8")
     trechos, info = modelo.transcribe(
-        a.video,
+        ler_audio(a.video),
         language=a.idioma,
         word_timestamps=True,
         initial_prompt=dica,
-        vad_filter=True,
+        vad_filter=not a.sem_vad,
         vad_parameters={"min_silence_duration_ms": 400},
         beam_size=5,
     )
