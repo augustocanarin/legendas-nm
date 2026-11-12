@@ -32,8 +32,9 @@ BLOCO, CONTEXTO = 20.0, 1.0  # o áudio é processado em blocos de 20 s com 1 s 
 
 ANTECIPA = 0.05              # a frase aparece 50 ms antes da voz (o olho precisa desse tempinho)
 EMENDA = 0.30                # buracos menores que isso entre frases são fechados (evita piscar)
-SUSTAIN_LIMITE = 3.0         # máximo que uma nota sustentada pode estender a frase
-SUSTAIN_ENERGIA = 0.35       # a voz "acabou" quando a energia cai abaixo dessa fração
+SUSTAIN_LIMITE = 6.0         # máximo que uma nota sustentada pode estender a frase
+VOZ_ACIMA_DO_PISO_DB = 12    # há voz quando a energia está 12 dB acima do silêncio do arquivo
+PAUSA_TOLERADA = 0.25        # respiros/vibratos mais curtos que isso não encerram a frase
 
 
 def carregar_modelo():
@@ -152,15 +153,30 @@ def energia_voz(audio):
     return np.convolve(rms, k, mode="same")
 
 
-def estender_sustain(fim_q, limite_q, rms, prob_voz):
-    """Mantém a frase na tela enquanto a última nota continua soando."""
-    if fim_q >= limite_q:
-        return fim_q
-    ref = rms[max(0, fim_q - 5):fim_q + 1].max()
-    q = fim_q
-    while q + 1 < limite_q and rms[q + 1] > SUSTAIN_ENERGIA * ref and prob_voz[q + 1] > 0.02:
+def voz_ativa(rms):
+    """Quadros com voz soando: energia bem acima do piso de silêncio do arquivo.
+
+    Funciona de verdade só com a voz isolada (separar_voz.py); no áudio com
+    instrumentos, o violão também conta como "som".
+    """
+    db = 20 * np.log10(rms + 1e-9)
+    piso = np.percentile(db, 10)
+    return db > piso + VOZ_ACIMA_DO_PISO_DB
+
+
+def estender_sustain(fim_q, limite_q, ativa):
+    """Mantém a frase na tela enquanto a última nota continua soando.
+
+    O alinhamento marca o fim da última letra cedo (o modelo "reconhece" a
+    vogal no início e não enquanto ela é segurada), então seguimos a energia
+    da voz até ela realmente parar.
+    """
+    tolera = int(PAUSA_TOLERADA / QUADRO)
+    q, silencio = fim_q, 0
+    while q + 1 < limite_q and silencio <= tolera:
         q += 1
-    return q
+        silencio = 0 if ativa[q] else silencio + 1
+    return max(fim_q, q - silencio)
 
 
 def main():
@@ -205,7 +221,7 @@ def main():
         pal["inicio"], pal["fim"] = q_ini[w] * QUADRO, (q_fim[w] + 1) * QUADRO
 
     rms = energia_voz(audio)[:T]
-    prob_voz = 1 - np.exp(lp[:, 0])   # chance de haver letra (não-branco) em cada quadro
+    ativa = voz_ativa(rms)
 
     novas = []
     for fi, f in enumerate(frases):
@@ -220,7 +236,7 @@ def main():
         prox = novas[i + 1]["inicio"] if i + 1 < len(novas) else T * QUADRO
         if not a.sem_sustain:
             limite = min(prox, f["fim"] + SUSTAIN_LIMITE)
-            f["fim"] = (estender_sustain(int(f["fim"] / QUADRO), int(limite / QUADRO), rms, prob_voz) + 1) * QUADRO
+            f["fim"] = (estender_sustain(int(f["fim"] / QUADRO), int(limite / QUADRO), ativa) + 1) * QUADRO
         f["inicio"] = max(0.0, f["inicio"] - ANTECIPA)
     for i, f in enumerate(novas):
         if i + 1 < len(novas):
