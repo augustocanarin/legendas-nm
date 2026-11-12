@@ -151,6 +151,8 @@ def main():
     p.add_argument("--fonte", default=None)
     p.add_argument("--fonte-nome", default=None)
     p.add_argument("--previa", action="store_true", help="gera PNGs de algumas frases em vez do vídeo")
+    p.add_argument("--largura", type=int, default=None,
+                   help="redimensiona o vídeo final (ex.: 1080 = padrão do Instagram, arquivo bem menor)")
     p.add_argument("--crf", type=int, default=18, help="qualidade do vídeo (menor = melhor; 18 é quase sem perda)")
     a = p.parse_args()
 
@@ -166,6 +168,11 @@ def main():
         sys.exit("Corrija o frases.json antes de legendar:\n  " + "\n  ".join(problemas))
 
     w, h = dimensoes(video)
+    escala_video = ""
+    if a.largura and a.largura != w:
+        h = round(h * a.largura / w / 2) * 2
+        w = a.largura
+        escala_video = f"scale={w}:{h}:flags=lanczos,"
     ass, ajustadas = montar_ass(frases, estilo, w, h)
     saida = Path(a.saida or Path(video).with_name(Path(video).stem + "_legendado.mp4")).resolve()
     saida.parent.mkdir(parents=True, exist_ok=True)
@@ -180,7 +187,7 @@ def main():
         # trabalhar numa pasta temporária evita problemas de caminho com espaço/acento no filtro do ffmpeg
         shutil.copy(estilo["fonte_arquivo"], Path(tmp) / Path(estilo["fonte_arquivo"]).name)
         (Path(tmp) / "legenda.ass").write_text(ass, encoding="utf-8")
-        filtro = "subtitles=legenda.ass:fontsdir=."
+        filtro = escala_video + "subtitles=legenda.ass:fontsdir=."
         os.chdir(tmp)
 
         if a.previa:

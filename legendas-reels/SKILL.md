@@ -32,21 +32,45 @@ nunca dentro da skill.
 
 ## Fluxo
 
-### 1. Entender o vídeo
+### 1. Receber e entender o vídeo
+Vídeos de Reels costumam passar do limite de anexo da conversa (~30 MB). Nesse caso, peça um
+link do Google Drive com acesso "Qualquer pessoa com o link" e baixe direto (não use o conector
+do Drive para vídeos: ele devolve o arquivo em base64 dentro da conversa e não cabe):
+```bash
+curl -sSL -o entrada/video.mp4 "https://drive.usercontent.google.com/download?id=<ID>&export=download&confirm=t"
+```
+(o `<ID>` é o trecho entre `/d/` e `/view` do link; em sessões na nuvem, `drive.google.com` e
+`drive.usercontent.google.com` precisam estar liberados na rede.)
+
 Confirme o arquivo e pergunte só o que mudar o resultado e não for óbvio:
 - Quem fala e quais nomes próprios aparecem (pregador, igreja, música, livro/versículo citado).
   Isso vira a `--dica` da transcrição e melhora muito a precisão.
-- Se há trechos **cantados**: por padrão, legende as falas e também a letra cantada. O Whisper
-  erra bastante em música com banda; se o usuário souber a música, peça a letra e use-a para
-  corrigir o texto (mantendo os tempos).
+- Se há trechos **cantados**: legende a letra cantada também. Peça a **letra** (nome da música
+  ajuda). Sites de letra como o Letras.mus.br bloqueiam acesso de servidores, então peça para o
+  usuário colar o texto na conversa. Com a letra, siga o passo 2b.
 
 ### 2. Transcrever
 ```bash
 python scripts/transcrever.py VIDEO.mp4 -o trabalho/transcricao.json --dica "Pr. Fulano, Filipenses 3, Getsêmani"
 ```
-Modelo padrão `medium` (bom equilíbrio para português). Use `--modelo large-v3` se a
-transcrição sair ruim e houver tempo; `small` se a máquina for fraca. O script lista as
-palavras de baixa confiança — elas são o primeiro lugar a revisar.
+Modelo padrão `medium` (bom equilíbrio para fala em português); `small` se a máquina for fraca.
+O script lista as palavras de baixa confiança — elas são o primeiro lugar a revisar.
+
+**Música / louvor:** use direto `--modelo large-v3 --sem-vad`. No teste com um louvor de 3 min
+(voz e violão), o `medium` com o filtro de voz pegou só 60 palavras e pulou metade da música;
+o `large-v3` sem filtro pegou a letra inteira com bons tempos (~4 min de processamento).
+
+### 2b. Músicas: aplicar a letra oficial
+```bash
+python scripts/alinhar_letra.py trabalho/transcricao.json trabalho/letra.txt -o trabalho/transcricao_letra.json
+```
+Salve a letra em `letra.txt`, um verso por linha, como o usuário mandou (refrão escrito uma
+vez só já basta — cada repetição cantada é reconhecida). O script põe o texto da letra nos
+tempos do áudio e marca o fim de cada verso como quebra obrigatória de frase. Confira a
+lista impressa: a nota entre parênteses é a semelhança (abaixo de ~0,7 merece um olhar), e os
+"não encaixados" são falas, "ô/oh" ou improvisos — decida com o usuário se ficam. Se ele
+removeu algo da letra que mandou (ex.: um "ô"), isso indica que não quer na legenda. Use o
+arquivo gerado no passo 3 no lugar da transcrição.
 
 ### 3. Quebrar em frases e revisar o texto
 ```bash
@@ -84,8 +108,11 @@ Isso gera 3 imagens (início, meio, fim). Olhe-as:
 
 ### 5. Renderizar e entregar
 ```bash
-python scripts/legendar.py VIDEO.mp4 trabalho/frases.json -o saida/VIDEO_legendado.mp4
+python scripts/legendar.py VIDEO.mp4 trabalho/frases.json -o saida/VIDEO_legendado.mp4 --largura 1080
 ```
+`--largura 1080` entrega em 1080×1920, o tamanho máximo que o Instagram usa: o arquivo fica
+bem menor (ex.: 564 MB em 1440p → 118 MB) sem diferença visível no Reel. Omita para manter a
+resolução original (ex.: para arquivo/edição posterior).
 Saem três arquivos lado a lado: o `.mp4` legendado (qualidade alta, CRF 18, áudio
 preservado), o `.srt` (para CapCut/Premiere ou para subir no Instagram) e o `.ass`
 (legenda estilizada, editável no Aegisub). Se algum aviso disser que uma frase foi reduzida

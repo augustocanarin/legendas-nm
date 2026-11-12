@@ -50,7 +50,7 @@ def blocos(palavras):
             yield atual
             atual = []
         atual.append(w)
-        if FIM_FRASE.search(w["palavra"]):
+        if FIM_FRASE.search(w["palavra"]) or w.get("quebra"):   # "quebra" = fim de verso da letra
             yield atual
             atual = []
     if atual:
