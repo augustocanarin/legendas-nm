@@ -23,7 +23,8 @@ ffmpeg -version   # precisa existir; no Mac: brew install ffmpeg
 
 Na primeira transcrição, o faster-whisper baixa o modelo de voz do site huggingface.co
 (~1,5 GB no `medium`). Se o download for bloqueado pela rede, avise o usuário: é preciso
-liberar o host `huggingface.co` (em sessões na nuvem, nas configurações do ambiente).
+liberar `huggingface.co` e os servidores de download dele (`us.aws.cdn.hf.co`, `cdn-lfs.hf.co`,
+`cas-bridge.xethub.hf.co`) — em sessões na nuvem, nas configurações do ambiente.
 
 Os scripts ficam em `scripts/` desta skill (nos comandos abaixo, `scripts/` é relativo à pasta
 da skill; use o caminho completo). Salve os arquivos de trabalho numa pasta própria do vídeo,
