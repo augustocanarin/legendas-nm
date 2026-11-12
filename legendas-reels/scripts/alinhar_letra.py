@@ -19,6 +19,7 @@ import unicodedata
 from difflib import SequenceMatcher
 
 LIMIAR = 0.55   # semelhança mínima para aceitar um verso
+BONUS_ORDEM = 0.10  # preferência pelo verso que vem a seguir na letra (desempata versos parecidos)
 
 
 def norm(p):
@@ -28,13 +29,32 @@ def norm(p):
 
 
 def ler_letra(caminho):
-    versos = []
+    versos, estrofe = [], 0
     for linha in open(caminho, encoding="utf-8"):
         linha = " ".join(linha.split())
-        if linha and not linha.startswith("["):     # ignora marcações tipo [Refrão]
+        if not linha:
+            estrofe += 1 if versos and versos[-1]["estrofe"] == estrofe else 0
+            continue
+        if not linha.startswith("["):     # ignora marcações tipo [Refrão]
             palavras = linha.split()
-            versos.append({"texto": linha, "palavras": palavras, "norm": [norm(p) for p in palavras]})
+            versos.append({"texto": linha, "palavras": palavras, "norm": [norm(p) for p in palavras],
+                           "estrofe": estrofe})
     return versos
+
+
+def proximos_esperados(versos, anterior):
+    """Versos que naturalmente vêm depois do `anterior`: o seguinte na estrofe ou,
+    no fim da estrofe, o começo da próxima ou a repetição da mesma (refrão)."""
+    if anterior is None:
+        return {0}
+    est = versos[anterior]["estrofe"]
+    if anterior + 1 < len(versos) and versos[anterior + 1]["estrofe"] == est:
+        return {anterior + 1}
+    inicio_mesma = min(i for i, v in enumerate(versos) if v["estrofe"] == est)
+    esperados = {inicio_mesma}
+    if anterior + 1 < len(versos):
+        esperados.add(anterior + 1)
+    return esperados
 
 
 def semelhanca(a, b):
@@ -93,11 +113,13 @@ def tempos_do_verso(verso, janela):
 
 def alinhar(palavras_t, versos):
     saida, nao_encaixados, usados = [], [], []
-    i = 0
+    i, anterior = 0, None
     while i < len(palavras_t):
+        esperados = proximos_esperados(versos, anterior)
         candidatos = [(encaixar(palavras_t, v, i), n) for n, v in enumerate(versos)]
-        (score, fim), n = max(candidatos, key=lambda c: c[0][0])
+        (score, fim), n = max(candidatos, key=lambda c: c[0][0] + (BONUS_ORDEM if c[1] in esperados else 0))
         if score >= LIMIAR:
+            anterior = n
             verso = versos[n]
             for palavra, (t0, t1) in zip(verso["palavras"], tempos_do_verso(verso, palavras_t[i:fim])):
                 saida.append({"palavra": palavra, "inicio": round(t0, 3), "fim": round(t1, 3), "confianca": 1.0})
