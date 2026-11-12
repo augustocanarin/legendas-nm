@@ -62,7 +62,14 @@ o tempo), e use o `voz.wav` no lugar do vídeo na transcrição e na sincroniza�
 python scripts/separar_voz.py VIDEO.mp4 -o trabalho/voz.wav          # ~1x a duração do vídeo
 python scripts/transcrever.py trabalho/voz.wav -o trabalho/transcricao.json --modelo large-v3 --sem-vad
 ```
-Use `--modelo large-v3 --sem-vad` em música. No teste com um louvor de 3 min
+Use `--modelo large-v3 --sem-vad` em música.
+
+Sem o filtro de voz, o Whisper às vezes **inventa texto no fim do arquivo** (no teste, repetiu
+o começo da música duas vezes nos últimos 3 s). Sinais: vários versos em poucos segundos,
+palavras com duração zero e confiança perto de 0 no `transcricao.json`. Apague esses trechos
+das frases antes de sincronizar. Também confira se o cantor repete ou omite palavras em
+relação à letra (ex.: "outra vez, outra vez, e outra vez"): a legenda segue o que é
+**cantado**, não a letra escrita — o usuário percebe quando aparece palavra que não foi cantada. No teste com um louvor de 3 min
 (voz e violão), o `medium` com o filtro de voz pegou só 60 palavras e pulou metade da música;
 o `large-v3` sem filtro pegou a letra inteira com bons tempos (~4 min de processamento).
 
