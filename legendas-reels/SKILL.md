@@ -174,7 +174,7 @@ quiser que as quebras levem em conta a nova largura (na prática a diferença é
 | `escala_horizontal` | estreita a fonte reserva para imitar a Helvetica Condensed |
 | `brilho_desfoque_px` | força do brilho (0 desliga) |
 | `posicao_vertical` | 0.5 = centro; maior = mais para baixo |
-| `largura_maxima` | fração da largura que uma frase pode ocupar (0,42 ≈ 2–3 palavras por vez; o usuário achou 0,84 texto demais por linha) |
+| `largura_maxima` | fração da largura que uma frase pode ocupar (0,43 ≈ 2–3 palavras por vez; o usuário achou 0,84 texto demais por linha) |
 | `sombra_contraste` | 0 = desligada; ~12 = sombra escura suave para fundos claros |
 
 Tudo é proporcional: vídeos 720p ou 4K ficam com a mesma aparência de um 1080×1920.

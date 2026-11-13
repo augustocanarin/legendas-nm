@@ -28,6 +28,7 @@ a o as os um uma uns umas e ou mas nem que se de do da dos das no na nos nas em
 ao aos à às pelo pela pelos pelas por para pra pro com sem sob sobre entre até
 meu minha teu tua seu sua nosso nossa lhe me te nos vos é não tão mais muito
 quando como onde porque pois já
+ele ela eles elas
 """.split())
 
 FIM_FRASE = re.compile(r"[.?!…]+[\"”')]*$")
