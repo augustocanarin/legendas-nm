@@ -105,7 +105,7 @@ todas as frases** e corrija o `"texto"` no `frases.json`:
 
 ### 3b. Sincronizar (obrigatório)
 ```bash
-python scripts/sincronizar.py trabalho/voz.wav trabalho/frases.json -o trabalho/frases_sinc.json   # música
+python scripts/sincronizar.py trabalho/voz.wav trabalho/frases.json --transcricao trabalho/transcricao.json -o trabalho/frases_sinc.json   # música
 python scripts/sincronizar.py VIDEO.mp4 trabalho/frases.json -o trabalho/frases_sinc.json --sem-sustain   # fala
 ```
 Os tempos do Whisper erram muito em música (no teste, até 3,4 s: ele "gruda" o início de um
@@ -114,6 +114,12 @@ cantada/falada — esse é o critério de qualidade nº 1. Este passo faz alinha
 (wav2vec2 de português) do texto já revisado contra o áudio. Por isso rode-o **depois** de
 revisar o texto, e use `frases_sinc.json` no passo 5. Se ele disser que não conseguiu
 alinhar, há texto faltando ou sobrando em relação ao áudio.
+
+Passe sempre `--transcricao`: o alinhador sozinho marca a troca de frase dentro de um verso
+~0,3–0,5 s atrasada e se perde em notas muito longas; com a transcrição ele combina os dois
+relógios nesses pontos (o script lista o que ajustou). As legendas entram 0,2 s antes da
+sílaba, de propósito: é o que o olho percebe como "junto" com a voz. Se o script avisar de
+frases que "só piscam", corrija-as à mão olhando os tempos do `transcricao.json`.
 
 Mostre ao usuário a lista final de frases (número, tempo e texto) e as correções que você fez
 e que mudam sentido ou nome — ele conhece o conteúdo e pega erros que você não pegaria. Em

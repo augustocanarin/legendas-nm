@@ -30,7 +30,8 @@ QUADRO = 320 / TAXA          # o modelo dá uma previsão a cada 20 ms
 FOLGA_BUSCA = 4.0            # quanto (s) a frase pode estar longe do tempo aproximado
 BLOCO, CONTEXTO = 20.0, 1.0  # o áudio é processado em blocos de 20 s com 1 s de contexto
 
-ANTECIPA = 0.05              # a frase aparece 50 ms antes da voz (o olho precisa desse tempinho)
+ANTECIPA = 0.20              # a frase aparece 0,2 s antes da sílaba: assim o olho a percebe "junto" com a voz
+COLADA = 0.60                # frases separadas por menos que isso são continuação do mesmo verso
 EMENDA = 0.30                # buracos menores que isso entre frases são fechados (evita piscar)
 SUSTAIN_LIMITE = 6.0         # máximo que uma nota sustentada pode estender a frase
 VOZ_ACIMA_DO_PISO_DB = 12    # há voz quando a energia está 12 dB acima do silêncio do arquivo
@@ -179,11 +180,81 @@ def estender_sustain(fim_q, limite_q, ativa):
     return max(fim_q, q - silencio)
 
 
+def _n(p):
+    p = unicodedata.normalize("NFD", p.lower())
+    return "".join(c for c in p if c.isalnum() and unicodedata.category(c) != "Mn")
+
+
+def casar_whisper(novas, transcricao):
+    """Para cada frase, os tempos que o Whisper deu à 1ª e à última palavra (ou None).
+
+    A 1ª palavra de cada trecho do Whisper é ignorada: nela ele costuma "colar" o
+    início no fim do trecho anterior, errando por segundos.
+    """
+    from difflib import SequenceMatcher
+    W = transcricao["palavras"]
+    inicios_seg = {round(sg["inicio"], 2) for sg in transcricao.get("segmentos", [])}
+    confiavel = [round(w["inicio"], 2) not in inicios_seg for w in W]
+    nossas = [(fi, k, _n(p[0])) for fi, f in enumerate(novas) for k, p in enumerate(f["palavras"])]
+    sm = SequenceMatcher(None, [x[2] for x in nossas], [_n(w["palavra"]) for w in W], autojunk=False)
+    par = {}
+    for a, b, size in sm.get_matching_blocks():
+        for d in range(size):
+            par[nossas[a + d][:2]] = b + d
+    res = []
+    for fi, f in enumerate(novas):
+        j0, j1 = par.get((fi, 0)), par.get((fi, len(f["palavras"]) - 1))
+        ini = W[j0]["inicio"] if j0 is not None and confiavel[j0] else None
+        fim = W[j1]["fim"] if j1 is not None else None
+        res.append((ini, fim))
+    return res
+
+
+def fundir_com_whisper(novas, tempos_w):
+    """Combina os dois relógios onde o alinhador costuma errar.
+
+    - Troca de frase dentro do mesmo verso (sem pausa): o alinhador marca a
+      entrada da 2ª parte ~0,3-0,5 s atrasada; usamos a média dos dois.
+    - Palavras espremidas (frase com menos de 0,3 s de voz, típico de nota
+      longa): o alinhador se perdeu ali, então vale o tempo do Whisper.
+    """
+    ajustes = []
+    seguir_whisper = False   # depois de um trecho espremido, a frase seguinte também está deslocada
+    for i, (f, (wi, wf)) in enumerate(zip(novas, tempos_w)):
+        if wi is None:
+            seguir_whisper = False
+            continue
+        w2v_ini = f["palavras"][0][1]
+        espremida = f["palavras"][-1][2] - w2v_ini < 0.3
+        colada = i > 0 and w2v_ini - novas[i - 1]["palavras"][-1][2] < COLADA
+        if (espremida or seguir_whisper) and abs(wi - w2v_ini) < FOLGA_BUSCA:
+            novo = wi
+            seguir_whisper = espremida
+        elif colada and abs(wi - w2v_ini) < 1.0:
+            novo = (wi + w2v_ini) / 2
+            seguir_whisper = False
+        else:
+            seguir_whisper = False
+            continue
+        if i > 0:
+            novo = max(novo, novas[i - 1]["inicio"] + 0.3)
+        if i + 1 < len(novas) and not espremida:
+            novo = min(novo, novas[i + 1]["inicio"] - 0.3)
+        if abs(novo - f["inicio"]) >= 0.05:
+            ajustes.append((i + 1, f["texto"], f["inicio"], novo))
+            f["inicio"] = novo
+            if espremida and wf is not None and wf > novo:
+                f["fim"] = max(f["fim"], wf)
+    return ajustes
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("video")
     p.add_argument("frases")
     p.add_argument("-o", "--saida", default=None)
+    p.add_argument("--transcricao", default=None,
+                   help="transcricao.json do Whisper: combina os dois relógios (recomendado)")
     p.add_argument("--sem-sustain", action="store_true",
                    help="não estender frases durante notas longas (use em vídeos só de fala)")
     a = p.parse_args()
@@ -231,6 +302,16 @@ def main():
         inicio, fim = ws[0]["inicio"], ws[-1]["fim"]
         novas.append({"inicio": inicio, "fim": fim, "texto": f["texto"],
                       "palavras": [[w["palavra"], round(w["inicio"], 3), round(w["fim"], 3)] for w in ws]})
+
+    if a.transcricao:
+        tw = casar_whisper(novas, json.load(open(a.transcricao, encoding="utf-8")))
+        ajustes = fundir_com_whisper(novas, tw)
+        if ajustes:
+            print(f"Ajustadas com o Whisper ({len(ajustes)}):", file=sys.stderr)
+            for n, txt, de, para in ajustes:
+                print(f"  {n:3d}  {de:7.2f} -> {para:7.2f}  {txt}", file=sys.stderr)
+        for i in range(len(novas) - 1):          # a frase anterior termina onde a próxima começa, se passar
+            novas[i]["fim"] = min(novas[i]["fim"], novas[i + 1]["inicio"])
 
     for i, f in enumerate(novas):
         prox = novas[i + 1]["inicio"] if i + 1 < len(novas) else T * QUADRO
