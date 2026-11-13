@@ -253,6 +253,12 @@ def main():
         d = f["inicio"] - velha["inicio"]
         print(f"{i:3d}  {f['inicio']:7.2f}-{f['fim']:7.2f}  (antes {velha['inicio']:7.2f}, {d:+.2f}s)  {f['texto']}",
               file=sys.stderr)
+    curtas = [(i, f) for i, f in enumerate(novas, 1) if f["fim"] - f["inicio"] < 0.5]
+    if curtas:
+        print("\nATENÇÃO: frases que só piscam na tela (alinhamento provavelmente espremido ali —"
+              " compare com os tempos do transcricao.json e ajuste à mão):", file=sys.stderr)
+        for i, f in curtas:
+            print(f"  {i:3d}  {f['inicio']:7.2f}-{f['fim']:7.2f}  {f['texto']}", file=sys.stderr)
     print(f"\n{len(novas)} frases sincronizadas -> {saida}", file=sys.stderr)
 
 
