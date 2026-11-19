@@ -130,6 +130,18 @@ Mostre ao usuário a lista final de frases (número, tempo e texto) e as correç
 e que mudam sentido ou nome — ele conhece o conteúdo e pega erros que você não pegaria. Em
 pedidos do tipo "só legenda e me manda", siga em frente e liste as correções no final.
 
+### 4a. Conferir os tempos pelo que é ouvido (música: obrigatório)
+```bash
+python scripts/conferir_letras.py trabalho/voz.wav trabalho/frases_sinc.json
+```
+Lê a voz letra por letra sem usar a letra da música e mostra o que é ouvido perto do início de
+cada frase. **Leia a lista inteira antes de renderizar.** A 1ª palavra de cada frase precisa
+aparecer (mesmo mal escrita: "trodo" = todo, "gratu" = grato) perto do início marcado; se só
+aparece bem depois, a frase está adiantada — corrija `inicio` para o tempo ouvido − 0,2 s e o
+`fim` da anterior. Pule isto e erros de vários segundos passam: numa ponte com notas longas
+("E eeeu…" segurado 5 s), o alinhador pôs "todo o meu ser" 5,6 s antes de ser cantado e o
+usuário ficou com razão bem irritado. Ele não deveria ser o seu verificador de tempo.
+
 ### 4. Conferir o visual antes de renderizar
 ```bash
 python scripts/legendar.py VIDEO.mp4 trabalho/frases_sinc.json -o saida/VIDEO_legendado.mp4 --previa
