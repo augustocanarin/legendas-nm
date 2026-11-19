@@ -115,11 +115,16 @@ cantada/falada — esse é o critério de qualidade nº 1. Este passo faz alinha
 revisar o texto, e use `frases_sinc.json` no passo 5. Se ele disser que não conseguiu
 alinhar, há texto faltando ou sobrando em relação ao áudio.
 
-Passe sempre `--transcricao`: o alinhador sozinho marca a troca de frase dentro de um verso
-~0,3–0,5 s atrasada e se perde em notas muito longas; com a transcrição ele combina os dois
-relógios nesses pontos (o script lista o que ajustou). As legendas entram 0,2 s antes da
-sílaba, de propósito: é o que o olho percebe como "junto" com a voz. Se o script avisar de
-frases que "só piscam", corrija-as à mão olhando os tempos do `transcricao.json`.
+Passe sempre `--transcricao` em música. O alinhador acerta as trocas de frase com precisão
+(elas caem exatamente nas quedas de volume entre sílabas) — não "corrija" isso com os tempos do
+Whisper: testamos a média dos dois e o refrão piorou. O erro real dele é outro: em nota longa,
+a 1ª palavra da frase seguinte fica presa antes da **respiração** do cantor ("caminho… | Ele
+abriu no mar" com o "Ele" dentro do "caminhooo"). O script detecta as respirações na voz
+isolada e move essas frases para quando a voz volta (lista o que mudou); a transcrição só
+desempata. Depois de uma correção dessas, confira a frase SEGUINTE: ela também pode ter sido
+espremida (compare com outra repetição do mesmo verso, que costuma ter o mesmo intervalo).
+As legendas entram 0,2 s antes da sílaba, de propósito. Se o script avisar de frases que
+"só piscam", confira se o trecho é mesmo cantado rápido antes de mexer.
 
 Mostre ao usuário a lista final de frases (número, tempo e texto) e as correções que você fez
 e que mudam sentido ou nome — ele conhece o conteúdo e pega erros que você não pegaria. Em

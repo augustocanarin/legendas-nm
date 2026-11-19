@@ -31,7 +31,6 @@ FOLGA_BUSCA = 4.0            # quanto (s) a frase pode estar longe do tempo apro
 BLOCO, CONTEXTO = 20.0, 1.0  # o áudio é processado em blocos de 20 s com 1 s de contexto
 
 ANTECIPA = 0.20              # a frase aparece 0,2 s antes da sílaba: assim o olho a percebe "junto" com a voz
-COLADA = 0.60                # frases separadas por menos que isso são continuação do mesmo verso
 EMENDA = 0.30                # buracos menores que isso entre frases são fechados (evita piscar)
 SUSTAIN_LIMITE = 6.0         # máximo que uma nota sustentada pode estender a frase
 VOZ_ACIMA_DO_PISO_DB = 12    # há voz quando a energia está 12 dB acima do silêncio do arquivo
@@ -210,41 +209,66 @@ def casar_whisper(novas, transcricao):
     return res
 
 
-def fundir_com_whisper(novas, tempos_w):
-    """Combina os dois relógios onde o alinhador costuma errar.
+def respiracoes(audio):
+    """Respirações do cantor na voz isolada: silêncios (>= 0,12 s abaixo de 22 dB do pico)
+    e quedas fundas (>= 18 dB) entre notas. Devolve [(início, volta_da_voz)]."""
+    n = len(audio) // 320
+    db = 20 * np.log10(np.sqrt((audio[:n * 320].reshape(n, 320) ** 2).mean(1)) + 1e-9)
+    db = np.convolve(db, np.ones(3) / 3, "same")
+    lim = np.percentile(db, 95) - 22
+    res, i = [], 0
+    while i < n:
+        if db[i] < lim:
+            j = i
+            while j < n and db[j] < lim:
+                j += 1
+            if (j - i) * QUADRO >= 0.12 and i > 0:
+                res.append((i * QUADRO, j * QUADRO))
+            i = j
+        else:
+            i += 1
+    for i in range(10, n - 10):
+        if db[i] == db[i - 10:i + 11].min() and db[i] >= lim:
+            depois = db[i:i + 40].max()
+            if min(db[max(0, i - 40):i].max(), depois) - db[i] >= 18:
+                k = i
+                while k < i + 40 and db[k] < depois - 6:
+                    k += 1
+                res.append((i * QUADRO, k * QUADRO))
+    return sorted(res)
 
-    - Troca de frase dentro do mesmo verso (sem pausa): o alinhador marca a
-      entrada da 2ª parte ~0,3-0,5 s atrasada; usamos a média dos dois.
-    - Palavras espremidas (frase com menos de 0,3 s de voz, típico de nota
-      longa): o alinhador se perdeu ali, então vale o tempo do Whisper.
+
+def corrigir_respiracoes(novas, resp, tempos_w):
+    """Uma frase não começa antes de uma respiração para continuar depois dela.
+
+    É o erro típico do alinhador em música: a 1ª palavra da frase fica "presa" na
+    nota longa anterior (ex.: "caminho... | Ele abriu no mar" com o "Ele" dentro
+    do "caminhooo"). Quando as palavras antes da respiração duram pouco (< 0,4 s,
+    espremidas) ou o Whisper também ouve a 1ª palavra depois dela, a frase passa a
+    começar quando a voz volta. Se o Whisper confirma a palavra antes da
+    respiração (cantor respirou no meio da frase), nada muda.
     """
     ajustes = []
-    seguir_whisper = False   # depois de um trecho espremido, a frase seguinte também está deslocada
-    for i, (f, (wi, wf)) in enumerate(zip(novas, tempos_w)):
-        if wi is None:
-            seguir_whisper = False
+    for i, f in enumerate(novas):
+        if i == 0:
             continue
-        w2v_ini = f["palavras"][0][1]
-        espremida = f["palavras"][-1][2] - w2v_ini < 0.3
-        colada = i > 0 and w2v_ini - novas[i - 1]["palavras"][-1][2] < COLADA
-        if (espremida or seguir_whisper) and abs(wi - w2v_ini) < FOLGA_BUSCA:
-            novo = wi
-            seguir_whisper = espremida
-        elif colada and abs(wi - w2v_ini) < 1.0:
-            novo = (wi + w2v_ini) / 2
-            seguir_whisper = False
-        else:
-            seguir_whisper = False
-            continue
-        if i > 0:
-            novo = max(novo, novas[i - 1]["inicio"] + 0.3)
-        if i + 1 < len(novas) and not espremida:
-            novo = min(novo, novas[i + 1]["inicio"] - 0.3)
-        if abs(novo - f["inicio"]) >= 0.05:
-            ajustes.append((i + 1, f["texto"], f["inicio"], novo))
-            f["inicio"] = novo
-            if espremida and wf is not None and wf > novo:
-                f["fim"] = max(f["fim"], wf)
+        ws = f["palavras"]
+        s, e = ws[0][1], ws[-1][2]
+        for r0, r1 in resp:
+            if not (s < r0 and r1 < e and r1 - s < 2.0):
+                continue
+            antes = [w for w in ws if w[2] <= r0 + 0.05]
+            if not antes or len(antes) == len(ws):
+                continue
+            espremidas = antes[-1][2] - antes[0][1] < 0.4
+            wi = tempos_w[i][0] if tempos_w else None
+            whisper_depois = wi is not None and wi >= r0
+            whisper_antes = wi is not None and wi < r0 - 0.1
+            if espremidas and not whisper_antes or whisper_depois:
+                ajustes.append((i + 1, f["texto"], f["inicio"], r1))
+                f["inicio"] = r1
+                novas[i - 1]["fim"] = max(novas[i - 1]["fim"], min(r0 + 0.1, r1))
+            break
     return ajustes
 
 
@@ -254,7 +278,7 @@ def main():
     p.add_argument("frases")
     p.add_argument("-o", "--saida", default=None)
     p.add_argument("--transcricao", default=None,
-                   help="transcricao.json do Whisper: combina os dois relógios (recomendado)")
+                   help="transcricao.json do Whisper: desempata as correções de respiração (recomendado)")
     p.add_argument("--sem-sustain", action="store_true",
                    help="não estender frases durante notas longas (use em vídeos só de fala)")
     a = p.parse_args()
@@ -303,11 +327,11 @@ def main():
         novas.append({"inicio": inicio, "fim": fim, "texto": f["texto"],
                       "palavras": [[w["palavra"], round(w["inicio"], 3), round(w["fim"], 3)] for w in ws]})
 
-    if a.transcricao:
-        tw = casar_whisper(novas, json.load(open(a.transcricao, encoding="utf-8")))
-        ajustes = fundir_com_whisper(novas, tw)
+    if not a.sem_sustain:   # música: corrigir frases que atravessam uma respiração
+        tw = casar_whisper(novas, json.load(open(a.transcricao, encoding="utf-8"))) if a.transcricao else None
+        ajustes = corrigir_respiracoes(novas, respiracoes(audio), tw)
         if ajustes:
-            print(f"Ajustadas com o Whisper ({len(ajustes)}):", file=sys.stderr)
+            print(f"Frases que atravessavam uma respiração ({len(ajustes)}):", file=sys.stderr)
             for n, txt, de, para in ajustes:
                 print(f"  {n:3d}  {de:7.2f} -> {para:7.2f}  {txt}", file=sys.stderr)
         for i in range(len(novas) - 1):          # a frase anterior termina onde a próxima começa, se passar
