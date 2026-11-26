@@ -110,7 +110,8 @@ def montar_ass(frases, estilo, w, h):
         base = f"{{\\an5\\pos({x:.1f},{y:.1f}){zoom}"
         txt = escapar_ass(texto)
         if sombra:
-            linhas.append(f"Dialogue: 0,{t0},{t1},Legenda,,0,0,0,,{base}\\1c&H000000&\\1a&H50&\\blur{sombra:.1f}}}{txt}")
+            linhas.append(f"Dialogue: 0,{t0},{t1},Legenda,,0,0,0,,{base}\\1c&H000000&\\1a&H40&"
+                          f"\\bord{sombra / 2:.1f}\\3c&H000000&\\3a&H50&\\blur{sombra:.1f}}}{txt}")  # halo escuro ao redor
         linhas.append(f"Dialogue: 1,{t0},{t1},Legenda,,0,0,0,,{base}}}{txt}")
         if brilho:
             # cópia desfocada por cima, igual à camada de blur do Figma

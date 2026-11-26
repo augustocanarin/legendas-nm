@@ -149,7 +149,7 @@ python scripts/legendar.py VIDEO.mp4 trabalho/frases_sinc.json -o saida/VIDEO_le
 Isso gera 3 imagens (início, meio, fim). Olhe-as:
 - A legenda está legível? O estilo original é amarelo sem contorno, pensado para fundo escuro.
   Se o fundo for claro (palco iluminado, parede branca, céu), sugira ativar a sombra de
-  contraste: copie `assets/estilo.json`, mude `"sombra_contraste"` para `12` e passe
+  contraste: copie `assets/estilo.json`, mude `"sombra_contraste"` para `10` e passe
   `--estilo` com a cópia. Não altere o estilo da casa sem o usuário concordar.
 - O centro da tela cobre um rosto o tempo todo? Então ofereça `"posicao_vertical"` entre
   `0.6` e `0.68` (abaixo do centro, ainda acima da área da legenda/botões do Instagram).
@@ -199,6 +199,6 @@ quiser que as quebras levem em conta a nova largura (na prática a diferença é
 | `brilho_desfoque_px` | força do brilho (0 desliga) |
 | `posicao_vertical` | 0.5 = centro; maior = mais para baixo |
 | `largura_maxima` | fração da largura que uma frase pode ocupar (0,46 ≈ 2–3 palavras por vez; o usuário achou 0,84 texto demais por linha) |
-| `sombra_contraste` | 0 = desligada; ~12 = sombra escura suave para fundos claros |
+| `sombra_contraste` | 0 = desligada; ~10 = halo escuro suave ao redor das letras, para fundos claros (camiseta branca, parede clara) |
 
 Tudo é proporcional: vídeos 720p ou 4K ficam com a mesma aparência de um 1080×1920.
