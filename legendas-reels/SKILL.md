@@ -166,6 +166,13 @@ preservado), o `.srt` (para CapCut/Premiere ou para subir no Instagram) e o `.as
 (legenda estilizada, editável no Aegisub). Se algum aviso disser que uma frase foi reduzida
 para caber, considere dividi-la e renderizar de novo. Entregue o vídeo e o `.srt` ao usuário.
 
+## Vídeo reeditado com legenda já aprovada
+Se o usuário mandar uma nova versão do vídeo (mudou a imagem) e disser que os tempos já estão
+bons, não refaça nada: só confira que o áudio não se deslocou (mesma duração e o envelope de
+volume dos dois arquivos alinhado em deslocamento zero em alguns pontos — uma correlação
+cruzada simples resolve) e rode o `legendar.py` com o `frases_sinc.json` aprovado. Se o áudio
+mudou (corte, trecho a mais), aí sim os tempos precisam ser refeitos.
+
 ## Fonte
 
 A Helvetica Neue Condensed Bold do design é paga e não vem junto. A skill usa uma versão da
