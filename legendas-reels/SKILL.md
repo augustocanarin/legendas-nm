@@ -168,9 +168,10 @@ para caber, considere dividi-la e renderizar de novo. Entregue o vídeo e o `.sr
 
 ## Vídeo reeditado com legenda já aprovada
 Se o usuário mandar uma nova versão do vídeo (mudou a imagem) e disser que os tempos já estão
-bons, não refaça nada: só confira que o áudio não se deslocou (mesma duração e o envelope de
-volume dos dois arquivos alinhado em deslocamento zero em alguns pontos — uma correlação
-cruzada simples resolve) e rode o `legendar.py` com o `frases_sinc.json` aprovado. Se o áudio
+bons, não refaça nada: só confira que o áudio não mudou — compare as amostras dos dois
+áudios diretamente, em janelas de 5 s sem deslocamento (diferença zero = idêntico). Evite
+procurar o "melhor deslocamento" por correlação: em músicas com refrão repetido ela acha
+falsos encaixes em outro ponto da música e rode o `legendar.py` com o `frases_sinc.json` aprovado. Se o áudio
 mudou (corte, trecho a mais), aí sim os tempos precisam ser refeitos.
 
 ## Fonte
